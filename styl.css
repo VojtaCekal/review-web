@@ -1,0 +1,78 @@
+   body {
+      font-family: 'Times New Roman', Times, serif ;
+      background: white;
+      padding: 30px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    input, button {
+      width: 98%;
+      margin: 8px 0;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    textarea {
+      width: 87%;
+      margin: 8px 0;
+      padding: 50px;
+      font-size: 16px;
+    }
+
+    button {
+      background: #ff9800;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #e68900;
+    }
+
+
+    footer {
+      padding-top: 30px;
+    }
+
+
+    .recenze_ramec {
+      max-width: 1000px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .review {
+      border-bottom: 1px solid #ddd;
+      padding: 10px 0;
+      white-space: pre-wrap;   /* zachová odřádkování */
+      word-wrap: break-word;  /* zalomí dlouhá slova */
+      overflow-wrap: break-word;
+    }
+
+    .stars {
+      color: gold;
+    }
+
+    .admin_ramec {
+      padding-left: 1620px;
+    }
+
+    h2 {
+      text-align: center;
+    }

@@ -1,56 +1,88 @@
 <!DOCTYPE html>
-<html>
-    <head>
-      <div class="admin_ramec">
-        <button onclick="login()">🔐 Admin přihlášení</button>
-        </div>
-        <title>Recenze produktu</title>
-        <link rel="stylesheet" href="styl.css">
-    </head>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recenze produktu</title>
+  <link rel="stylesheet" href="styl.css">
+<style>
+  /* Jednoduché CSS pro lepší přehled */
+  .container { max-width: 700px; margin: auto; padding: 15px; }
+  #reviews .review { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+  #adminPanel { border: 2px solid #333; padding-left: 10px; margin-bottom: 15px; }
+  #loginBox { position: fixed; top: 10px; right: 10px; z-index: 100; }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    input, textarea, button, select { width: 100% !important; }
+    textarea { padding: 10px; }
+    #adminPanel { padding-left: 15px; }
+  }
+</style>
+</head>
 <body>
-  <div class="container">
-    <h1> Recenze ...</h1>
 
-    <input type="text" id="name" placeholder="Vaše jméno">
-    <input type="text" id="email" placeholder="Vaše emailová adresa">
-    <textarea id="text" placeholder="Napište recenzi..."></textarea>
+<!-- Admin panel -->
+<div id="adminPanel" style="display:none;">
+  <h3>Admin panel</h3>
+  <button onclick="logout()">Odhlásit</button>
+  <p>Celkem recenzí: <span id="adminCount">0</span></p>
+</div>
 
-    <select id="rating">
-      <option value="5">⭐⭐⭐⭐⭐</option>
-      <option value="4">⭐⭐⭐⭐</option>
-      <option value="3">⭐⭐⭐</option>
-      <option value="2">⭐⭐</option>
-      <option value="1">⭐</option>
-    </select>
+<!-- Login box -->
+<div id="loginBox">
+  <button onclick="login()">Admin login</button>
+</div>
 
-    <button onclick="addReview()">Přidat recenzi</button>
-
-
-  </div>
-
-  <footer>
-    <div class="recenze_ramec">
-      <div id="stats">
-        <h2>⭐ Hodnocení: <span id="avg">0</span> / 5</h2>
-        <p>Počet recenzí: <span id="count">0</span></p>
-      </div>
-      <h2>Recenze</h2>
-         <div id="reviews"></div>
-
+<!-- Odpověď na recenze pro admina -->
+<div id="responseModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+  <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; border-radius:10px; width:90%; max-width:500px;">
+    <h3>Odpověď na recenzi</h3>
+    <textarea id="responseText" placeholder="Napište odpověď..." style="width:80%; height:100px;"></textarea>
+    <div style="margin-top:10px;">
+      <button onclick="submitResponse()" style="width:48%; margin-right:2%;">Odeslat</button>
+      <button onclick="closeResponseModal()" style="width:48%; background:#999;">Zrušit</button>
     </div>
-  </footer>
+  </div>
+</div>
 
+<!-- Formulář pro přidání recenze -->
+<div class="container">
+  <h1>Recenze ...</h1>
+  <input type="text" id="name" placeholder="Vaše jméno">
+  <input type="email" id="email" placeholder="Vaše emailová adresa">
+  <textarea id="text" placeholder="Napište recenzi..."></textarea>
+  <select id="rating">
+    <option value="5">⭐⭐⭐⭐⭐</option>
+    <option value="4">⭐⭐⭐⭐</option>
+    <option value="3">⭐⭐⭐</option>
+    <option value="2">⭐⭐</option>
+    <option value="1">⭐</option>
+  </select>
+  <button onclick="addReview()">Přidat recenzi</button>
+  <h5>Všechna pole kromě emailu jsou povinné</h5>
+</div>
 
-
-
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<!-- Statistika a recenze -->
+<footer>
+  <div class="recenze_ramec">
+    <div id="stats">
+      <h2>⭐ Hodnocení: <span id="avg">0</span> / 5</h2>
+      <p>Počet recenzí: <span id="count">0</span></p>
+    </div>
+    <h2>Recenze</h2>
+    <div id="reviews"></div>
+  </div>
+</footer>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } 
-  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+let renderId = 0;
+let currentResponseId = null; // ID recenze, na kterou odpovídáme
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBGcNTTQ-hlpbab3lwiuzgB_BtR8RWq3Ow",
   authDomain: "recenze-86af3.firebaseapp.com",
@@ -60,80 +92,238 @@ const firebaseConfig = {
   appId: "1:702942416836:web:5a0208bcff52475ef3de91"
 };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-  const reviewsDiv = document.getElementById("reviews");
-  let isAdmin = false;
+let isAdmin = false;
+const reviewsDiv = document.getElementById("reviews");
 
-  async function loadReviews() {
-    reviewsDiv.innerHTML = "";
-    let total = 0;
-    let count = 0;
+// ----------------- Auth State -----------------
+onAuthStateChanged(auth, user => {
+  isAdmin = user && user.email === "cekal.vojta0411@gmail.com";
 
-    const q = query(collection(db, "reviews"), orderBy("time", "desc"));
-    const snapshot = await getDocs(q);
+  document.getElementById("loginBox").style.display = isAdmin ? "none" : "block";
+  document.getElementById("adminPanel").style.display = isAdmin ? "block" : "none";
 
-    snapshot.forEach((docSnap) => {
-      const r = docSnap.data();
-      total += Number(r.rating);
-      count++;
+  // vždy znovu načíst recenze čistě
+  renderReviews();
+});
 
-      const div = document.createElement("div");
-      div.classList.add("review");
-      let stars = "⭐".repeat(r.rating);
+// ----------------- Render Reviews -----------------
+async function renderReviews() {
+  const thisRun = ++renderId;
+  reviewsDiv.innerHTML = ""; // vyčistit div před vykreslením
+  let total = 0;
+  let count = 0;
 
-      div.innerHTML = `
-        <strong>${r.name}</strong><br>
-        <span class="stars">${stars}</span>
-        <p>${r.text}</p>
-        ${isAdmin ? `<button onclick="deleteReview('${docSnap.id}')">❌ Smazat</button>` : ""}
-      `;
-      reviewsDiv.appendChild(div);
-    });
-
-    document.getElementById("avg").textContent = count ? (total / count).toFixed(1) : 0;
-    document.getElementById("count").textContent = count;
+  let q;
+  if (isAdmin) {
+    q = query(collection(db, "reviews"), orderBy("time", "desc"));
+  } else {
+    q = query(collection(db, "reviews"), where("approved", "==", true), orderBy("time", "desc"));
   }
 
-  loadReviews();
+  const snapshot = await getDocs(q);
 
-  window.addReview = async function () {
-    const name = document.getElementById("name").value;
-    const text = document.getElementById("text").value;
-    const rating = document.getElementById("rating").value;
+  if (thisRun !== renderId) return; // discard stale render results
 
-    if (!name || !text) return alert("Vyplň jméno i recenzi!");
+  snapshot.forEach(docSnap => {
+    const r = docSnap.data();
 
-    await addDoc(collection(db, "reviews"), {
-      name, text, rating, time: Date.now()
-    });
+    if (!isAdmin && !r.approved) return;
 
-    document.getElementById("name").value = "";
-    document.getElementById("text").value = "";
+    const div = document.createElement("div");
+    div.classList.add("review");
+    
+    // Formátování času
+    const reviewDate = new Date(r.time);
+    const formattedTime = reviewDate.toLocaleDateString("cs-CZ");
+    
+    const nameEl = document.createElement("strong");
+    nameEl.textContent = r.name;
+    div.appendChild(nameEl);
+    
+    const emailEl = document.createElement("span");
+    emailEl.textContent = " (" + (r.email || "email nespecifikován") + ")";
+    div.appendChild(emailEl);
+    
+    div.appendChild(document.createElement("br"));
+    
+    const dateEl = document.createElement("small");
+    dateEl.style.color = "#666";
+    dateEl.textContent = "Přidáno: " + formattedTime;
+    div.appendChild(dateEl);
+    
+    div.appendChild(document.createElement("br"));
+    
+    const starsEl = document.createElement("span");
+    starsEl.classList.add("stars");
+    starsEl.textContent = "⭐".repeat(r.rating);
+    div.appendChild(starsEl);
+    
+    const textEl = document.createElement("p");
+    textEl.textContent = r.text;
+    div.appendChild(textEl);
+    
+    if (isAdmin && !r.approved) {
+      const approveBtn = document.createElement("button");
+      approveBtn.textContent = "✅ Schválit";
+      approveBtn.onclick = () => approveReview(docSnap.id);
+      div.appendChild(approveBtn);
+    }
+    
+    if (isAdmin) {
+      const replyBtn = document.createElement("button");
+      replyBtn.textContent = "💬 Odpovědět";
+      replyBtn.onclick = () => openResponseModal(docSnap.id);
+      div.appendChild(replyBtn);
+      
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "❌ Smazat";
+      delBtn.onclick = () => deleteReview(docSnap.id);
+      div.appendChild(delBtn);
+    }
+    
+    if (r.adminResponse) {
+      const responseDiv = document.createElement("div");
+      responseDiv.style.background = "#f0f0f0";
+      responseDiv.style.padding = "10px";
+      responseDiv.style.marginTop = "10px";
+      responseDiv.style.borderLeft = "3px solid #ff9800";
+      
+      const responseTitle = document.createElement("strong");
+      responseTitle.textContent = "Majitel odpověděl:";
+      responseDiv.appendChild(responseTitle);
+      
+      const responseText = document.createElement("p");
+      responseText.textContent = r.adminResponse;
+      responseDiv.appendChild(responseText);
+      
+      div.appendChild(responseDiv);
+    }
 
-    loadReviews();
-  };
+    reviewsDiv.appendChild(div);
 
-  window.deleteReview = async function (id) {
-    await deleteDoc(doc(db, "reviews", id));
-    loadReviews();
-  };
+    total += Number(r.rating);
+    count++;
+  });
 
-  window.login = function () {
-    const pass = prompt("Admin heslo:");
-    if (pass === "tajne123") {
-      isAdmin = true;
-      loadReviews();
-      alert("Admin přihlášen!");
-    } else alert("Špatné heslo!");
-  };
+  document.getElementById("avg").textContent = count ? (total / count).toFixed(1) : "0.0";
+  document.getElementById("count").textContent = count;
+  document.getElementById("adminCount").textContent = count;
+}
+
+// ----------------- Add Review -----------------
+window.addReview = async function() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const text = document.getElementById("text").value;
+  const rating = document.getElementById("rating").value;
+
+  if (!name || !text) return alert("Vyplň jméno i recenzi!");
+  if (text.length < 10) return alert("Recenze je moc krátká.");
+
+  await addDoc(collection(db, "reviews"), {
+    name,
+    email,
+    text,
+    rating,
+    approved: isAdmin, // admin schválí hned
+    time: Date.now()
+  });
+
+  if (!isAdmin) alert("Děkujeme za recenzi! Čeká na schválení.");
+
+  // Vymazat text v polích
+  document.getElementById("name").value = "";
+  document.getElementById("email").value = "";
+  document.getElementById("text").value = "";
+  document.getElementById("rating").value = "5";
+
+  renderReviews(); // vždy vykreslit čerstvé recenze
+};
+
+// ----------------- Delete Review -----------------
+window.deleteReview = async function(id) {
+  if (!isAdmin) return alert("Nemáš oprávnění!");
+  await deleteDoc(doc(db, "reviews", id));
+  renderReviews();
+};
+
+// ----------------- Approve Review -----------------
+window.approveReview = async function(id) {
+  if (!isAdmin) return alert("Nemáš oprávnění!");
+  await updateDoc(doc(db, "reviews", id), { approved: true });
+  renderReviews();
+};
+
+// ----------------- Login -----------------
+window.login = async function() {
+  const email = prompt("Email:");
+  const pass = prompt("Heslo:");
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    alert("Přihlášen!");
+  } catch {
+    alert("Špatné údaje");
+  }
+};
+
+// ----------------- Logout -----------------
+window.logout = async function() {
+  await signOut(auth);
+  isAdmin = false;
+  alert("Odhlášen!");
+  renderReviews();
+};
+
+// ----------------- Response Modal -----------------
+window.openResponseModal = function(id) {
+  if (!isAdmin) return alert("Nemáš oprávnění!");
+  currentResponseId = id;
+  document.getElementById("responseText").value = "";
+  document.getElementById("responseModal").style.display = "block";
+};
+
+window.closeResponseModal = function() {
+  document.getElementById("responseModal").style.display = "none";
+  currentResponseId = null;
+};
+
+// ----------------- Submit Response -----------------
+window.submitResponse = async function() {
+  if (!currentResponseId) return;
+  const responseText = document.getElementById("responseText").value.trim();
+  
+  if (!responseText) {
+    alert("Napište odpověď!");
+    return;
+  }
+  
+  if (responseText.length < 5) {
+    alert("Odpověď je moc krátká.");
+    return;
+  }
+
+  await updateDoc(doc(db, "reviews", currentResponseId), {
+    adminResponse: responseText
+  });
+
+  closeResponseModal();
+  renderReviews();
+};
+
+// Zavřít modal při kliknutí mimo něj
+window.onclick = function(event) {
+  const modal = document.getElementById("responseModal");
+  if (event.target === modal) {
+    modal.style.display = "none";
+    currentResponseId = null;
+  }
+};
 </script>
-
-
-
 
 </body>
 </html>
-
 
